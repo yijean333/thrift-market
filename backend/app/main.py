@@ -6,6 +6,10 @@ from .db import get_db
 from .schemas import OrderCreateIn, OrderConfirmIn, OrderFinishIn, OrderCancelIn, OrderOut
 from . import crud
 
+from fastapi import Query
+from .schemas import ProductOut, ProductListOut
+from .crud import list_products as _list_products
+
 app = FastAPI(title="Thrift Market - Order API", version="0.1.0")
 
 # 開發階段先全開 CORS，前端（github.io / ngrok）比較好測
@@ -43,10 +47,29 @@ def finish_order(payload: OrderFinishIn, db: Session = Depends(get_db)):
         product_id=order.product_id, status=order.status
     )
 
-#（加碼）取消訂單
+# 取消訂單
 @app.put("/api/order/cancel", response_model=OrderOut)
 def cancel_order(payload: OrderCancelIn, db: Session = Depends(get_db)):
     order = crud.cancel_order(db, order_id=payload.order_id, by_user_id=payload.by_user_id)
+
+@app.get("/api/products", response_model=ProductListOut)
+def get_products(
+    q: str | None = Query(default=None, description="關鍵字（title/description LIKE）"),
+    status: str | None = Query(default=None, description="onsale/sold/archived"),
+    seller_id: int | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    total, rows = _list_products(db, q=q, status=status, seller_id=seller_id, limit=limit, offset=offset)
+    items = [
+        ProductOut(
+            id=r.id, seller_id=r.seller_id, title=r.title,
+            description=r.description, price=float(r.price),
+            status=r.status, cover_image_url=r.cover_image_url
+        ) for r in rows
+    ]
+    return {"total": total, "items": items}
     return OrderOut(
         id=order.id, buyer_id=order.buyer_id, seller_id=order.seller_id,
         product_id=order.product_id, status=order.status
