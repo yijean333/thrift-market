@@ -10,6 +10,9 @@ from fastapi import Query
 from .schemas import ProductOut, ProductListOut
 from .crud import list_products as _list_products
 
+from .schemas import OrderOut, OrderListOut
+from .crud import list_orders as _list_orders
+
 app = FastAPI(title="Thrift Market - Order API", version="0.1.0")
 
 # 開發階段先全開 CORS，前端（github.io / ngrok）比較好測
@@ -75,3 +78,23 @@ def get_products(
         product_id=order.product_id, status=order.status
     )
 
+@app.get("/api/orders", response_model=OrderListOut)
+def get_orders(
+    buyer_id: int | None = Query(default=None),
+    seller_id: int | None = Query(default=None),
+    status: str | None = Query(default=None, description="pending/confirmed/completed/cancelled"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    total, pairs = _list_orders(db, buyer_id=buyer_id, seller_id=seller_id, status=status, limit=limit, offset=offset)
+    items = []
+    for o, p in pairs:
+        items.append(OrderOut(
+            id=o.id, buyer_id=o.buyer_id, seller_id=o.seller_id,
+            product_id=o.product_id, status=o.status,
+            product_title=p.title if p else None,
+            product_price=float(p.price) if p and p.price is not None else None,
+            product_cover=p.cover_image_url if p else None,
+        ))
+    return {"total": total, "items": items}
