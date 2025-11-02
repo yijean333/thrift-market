@@ -1,5 +1,5 @@
 from pydantic import BaseModel, conint
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 OrderStatus = Literal['pending','confirmed','completed','cancelled']
 
@@ -26,3 +26,15 @@ class OrderOut(BaseModel):
     product_id: int
     status: OrderStatus
 
+class ProductOut(BaseModel):
+    id: int
+    seller_id: int
+    title: str
+    description: Optional[str] = None
+    price: float
+    status: Literal["onsale","sold","archived"]
+    cover_image_url: Optional[str] = None
+
+class ProductListOut(BaseModel):
+    total: int
+    items: List[ProductOut]
