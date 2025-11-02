@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, and_, or_, func
 from . import models
+from .models import Product
 
 def get_product(db: Session, product_id: int) -> models.Product | None:
     return db.scalar(select(models.Product).where(models.Product.id == product_id))
@@ -81,3 +82,32 @@ def cancel_order(db: Session, order_id: int, by_user_id: int) -> models.Order:
     db.refresh(order)
     return order
 
+def list_products(
+    db: Session,
+    q: str | None = None,
+    status: str | None = None,
+    seller_id: int | None = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    stmt = select(Product)
+    conds = []
+    if status:
+        conds.append(Product.status == status)
+    if seller_id:
+        conds.append(Product.seller_id == seller_id)
+    if q:
+        like = f"%{q}%"
+        conds.append(or_(Product.title.like(like), Product.description.like(like)))
+    if conds:
+        stmt = stmt.where(and_(*conds))
+    # 先依 id 由新到舊
+    stmt = stmt.order_by(Product.id.desc()).limit(limit).offset(offset)
+
+    items = list(db.scalars(stmt))
+    # total（簡易做法：重跑 count）
+    count_stmt = select(func.count()).select_from(Product)
+    if conds:
+        count_stmt = count_stmt.where(and_(*conds))
+    total = db.scalar(count_stmt) or 0
+    return total, items
