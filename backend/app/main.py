@@ -13,6 +13,9 @@ from .crud import list_products as _list_products
 from .schemas import OrderOut, OrderListOut
 from .crud import list_orders as _list_orders
 
+from .schemas import ProductCreate, ProductOut
+from .crud import create_product as _create_product
+
 app = FastAPI(title="Thrift Market - Order API", version="0.1.0")
 
 # 開發階段先全開 CORS，前端（github.io / ngrok）比較好測
@@ -98,3 +101,25 @@ def get_orders(
             product_cover=p.cover_image_url if p else None,
         ))
     return {"total": total, "items": items}
+
+@app.post("/api/product/create", response_model=ProductOut, status_code=201)
+def create_product_api(payload: ProductCreate, db: Session = Depends(get_db)):
+    p = _create_product(
+        db,
+        seller_id=payload.seller_id,
+        title=payload.title,
+        description=payload.description,
+        price=payload.price,
+        status=payload.status,
+        cover_image_url=payload.cover_image_url,
+    )
+    return ProductOut(
+        id=p.id,
+        seller_id=p.seller_id,
+        title=p.title,
+        description=p.description,
+        price=float(p.price),
+        status=p.status,
+        cover_image_url=p.cover_image_url,
+    )
+
