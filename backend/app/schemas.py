@@ -1,4 +1,4 @@
-from pydantic import BaseModel, conint
+from pydantic import BaseModel, conint, Field, validator
 from typing import Optional, Literal, List
 
 OrderStatus = Literal['pending','confirmed','completed','cancelled']
@@ -53,3 +53,18 @@ class OrderOut(BaseModel):
 class OrderListOut(BaseModel):
     total: int
     items: List[OrderOut]
+
+class ProductCreate(BaseModel):
+    seller_id: int = Field(..., ge=1)
+    title: str = Field(..., min_length=1, max_length=120)
+    description: Optional[str] = Field(None, max_length=2000)
+    price: float = Field(..., gt=0)
+    status: Literal["onsale", "sold", "archived"] = "onsale"
+    cover_image_url: Optional[str] = None
+
+    @validator("title")
+    def strip_title(cls, v):
+        v2 = v.strip()
+        if not v2:
+            raise ValueError("title cannot be empty")
+        return v2
