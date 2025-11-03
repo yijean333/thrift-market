@@ -1,6 +1,7 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+import ssl
 
 # 允許 .env （沒有也不影響）
 try:
@@ -14,10 +15,16 @@ if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL not set. Put it in backend/.env or export it.")
 
 # Aiven MySQL 要求 SSL；我們已在 URL 加了 ssl_mode=REQUIRED
+ssl_args = {
+    "ssl": {
+        "ca": "/home/s12350106/ca.pem"
+    }
+}
+
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=3600,
+    connect_args=ssl_args,
+    pool_pre_ping=True
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
