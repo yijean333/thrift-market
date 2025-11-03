@@ -1,26 +1,33 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from dotenv import load_dotenv
 
-# 載入 .env
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+# 允許 .env （沒有也不影響）
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL not set in backend/.env")
+    raise RuntimeError("DATABASE_URL not set. Put it in backend/.env or export it.")
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
+# Aiven MySQL 要求 SSL；我們已在 URL 加了 ssl_mode=REQUIRED
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 class Base(DeclarativeBase):
     pass
 
-# FastAPI 依賴注入使用
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
